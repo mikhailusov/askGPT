@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>askGPT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        /* Dark Theme Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h2 {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #transcriptions {
+            max-width: 600px;
+            margin: auto;
+            text-align: left;
+            overflow-y: auto;
+            max-height: 400px;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .transcription-box {
+            display: flex;
+            align-items: center;
+            background: #1e1e1e;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        input {
+            flex: 1;
+            background: #2c2c2c;
+            border: none;
+            color: #ffffff;
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        button {
+            background: #2196F3;
+            border: none;
+            color: #ffffff;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-left: 10px;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #1E88E5;
+        }
+
+        .response {
+            font-size: 14px;
+            color: #b0b0b0;
+            margin-top: 5px;
+            padding: 5px;
+        }
+
+        .model-select, .clear-btn {
+            position: absolute;
+            top: 10px;
+            padding: 8px 12px;
+            font-size: 14px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .model-select { left: 10px; }
+        .set-context-btn { right: 10px; }
+        .clear-btn { right: 120px; }
+
+        .clear-btn:hover, .set-context-btn:hover, .model-select:hover {
+            background: #444;
+        }
+
+        /* Modal Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: #222;
+            color: #fff;
+            padding: 20px;
+            width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: none;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+
+        .modal button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        .modal button:hover {
+            background: #45A049;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <select id="modelSelect" class="model-select"></select>
+    <button class="clear-btn" onclick="clearLog()">Clear Log</button>
+    <button class="set-context-btn" onclick="openModal()">Set Context</button>
+
+    <h2>askGPT</h2>
+    <div id="transcriptions"></div>
+
+    <!-- Context Modal -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+    <div class="modal" id="contextModal">
+        <h3>Set Context</h3>
+        <textarea id="contextInput"></textarea>
+        <button onclick="saveContext()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
+
+    <script>
+        var socket = io();
+        var currentContext = "";
+        var modelSelect = document.getElementById("modelSelect");
+        var transcriptionsDiv = document.getElementById("transcriptions");
+
+        // Load available models from server
+        fetch("/get_models")
+            .then(response => response.json())
+            .then(data => {
+                if (data.models) {
+                    data.models.forEach(model => {
+                        let option = document.createElement("option");
+                        option.value = model;
+                        option.textContent = model;
+                        modelSelect.appendChild(option);
+                    });
+                }
+            });
+
+        // Set model when selected
+        modelSelect.addEventListener("change", function() {
+            fetch("/set_model", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: modelSelect.value })
+            });
+        });
+
+        // Load initial context from server
+        fetch("/get_context")
+            .then(response => response.json())
+            .then(data => {
+                currentContext = data.context;
+                document.getElementById("contextInput").value = currentContext;
+            });
+
+        function openModal() {
+            document.getElementById("contextInput").value = currentContext;
+            document.getElementById("contextModal").style.display = "block";
+            document.getElementById("modalOverlay").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("contextModal").style.display = "none";
+            document.getElementById("modalOverlay").style.display = "none";
+        }
+
+        function saveContext() {
+            currentContext = document.getElementById("contextInput").value;
+            fetch("/set_context", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ context: currentContext })
+            });
+            closeModal();
+        }
+
+        function clearLog() {
+            transcriptionsDiv.innerHTML = "";
+        }
+
+        // Handle new transcription from server
+        socket.on("new_transcription", function(data) {
+            let text = data.text.trim();
+            if (text === "") return;
+
+            let transcriptionWrapper = document.createElement("div");
+            let transcriptionDiv = document.createElement("div");
+            transcriptionDiv.classList.add("transcription-box");
+
+            let input = document.createElement("input");
+            input.type = "text";
+            input.value = text;
+
+            let button = document.createElement("button");
+            button.innerText = "Ask";
+
+            let responseDiv = document.createElement("div");
+            responseDiv.classList.add("response");
+
+            button.onclick = function() {
+                responseDiv.innerText = "";
+                socket.emit("ask_gpt", { text: input.value, id: responseDiv.id });
+            };
+
+            responseDiv.id = "response-" + Date.now();
+            transcriptionDiv.appendChild(input);
+            transcriptionDiv.appendChild(button);
+            transcriptionWrapper.appendChild(transcriptionDiv);
+            transcriptionWrapper.appendChild(responseDiv);
+
+            transcriptionsDiv.appendChild(transcriptionWrapper);
+            transcriptionsDiv.scrollTop = transcriptionsDiv.scrollHeight;  // Auto-scroll
+        });
+
+        // Handle response from server
+        socket.on("gpt_response", function(responseData) {
+            let responseDiv = document.getElementById(responseData.id);
+            if (responseDiv) {
+                responseDiv.innerText += responseData.response;
+            }
+        });
+    </script>
+
+</body>
+</html>
