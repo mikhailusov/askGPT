@@ -73,14 +73,14 @@ Index 2: Built-in Output
 
 Look for the **BlackHole device** and note its **index number**.
 
-#### ✅ **Update `BLACKHOLE_INDEX` in `app.py`**
+#### ✅ **Update `AUDIO_DEVICE_INDEX` in `app.py`**
 Open `app.py` and update this line:
 ```python
-BLACKHOLE_INDEX = X  # Replace X with the correct index
+AUDIO_DEVICE_INDEX = X  # Change this to your BlackHole device index
 ```
 For example, if `BlackHole 16ch` is at index `1`, update:
 ```python
-BLACKHOLE_INDEX = 1
+AUDIO_DEVICE_INDEX = 1  # Change this to your BlackHole device index
 ```
 
 Save the file and restart **AskGPT**.
