@@ -25,6 +25,91 @@ It captures live audio, transcribes speech into text, and generates **context-aw
 
 ---
 
+## 🎧 Setting Up BlackHole on macOS for Audio Routing
+
+AskGPT uses **BlackHole** to capture system audio for transcription. Follow these steps to install and configure it properly.
+
+---
+
+### 1️⃣ Install BlackHole
+BlackHole is a **virtual audio driver** that allows applications to send and receive audio between different apps.
+
+1. Download BlackHole from the official [BlackHole GitHub](https://github.com/ExistentialAudio/BlackHole).
+2. Install it by following the instructions in the `.pkg` installer.
+
+---
+
+### 2️⃣ Create a Multi-Output Device (Route Audio to Both Speakers & BlackHole)
+To hear the system audio while also sending it to BlackHole:
+
+1. Open **Audio MIDI Setup** (`Command + Space` → search for "Audio MIDI Setup").
+2. Click **`+`** in the bottom-left corner and select **"Create Multi-Output Device"**.
+3. In the right panel, enable:
+   - ✅ **Built-in Output** (Your Mac’s speakers or external device)
+   - ✅ **BlackHole 16ch** (or the version you installed)
+4. Set **BlackHole as the Master Device**.
+5. Check **Drift Correction** for your built-in speakers.
+6. Rename it (optional) to something like **"BlackHole + Speakers"** for easy identification.
+
+---
+
+### 3️⃣ Find & Set `BLACKHOLE_INDEX` in `app.py`
+AskGPT needs the correct **input device index** to listen to **BlackHole**.  
+
+#### ✅ **Find the BlackHole Device Index**
+Run the following script to list available audio devices:
+
+```sh
+python devs.py
+```
+
+This will output something like:
+
+```
+Index 0: Built-in Microphone
+Index 1: BlackHole 16ch
+Index 2: Built-in Output
+```
+
+Look for the **BlackHole device** and note its **index number**.
+
+#### ✅ **Update `BLACKHOLE_INDEX` in `app.py`**
+Open `app.py` and update this line:
+```python
+BLACKHOLE_INDEX = X  # Replace X with the correct index
+```
+For example, if `BlackHole 16ch` is at index `1`, update:
+```python
+BLACKHOLE_INDEX = 1
+```
+
+Save the file and restart **AskGPT**.
+
+---
+
+### 4️⃣ Set Your Mac’s Audio Output to the Multi-Output Device
+1. Open **System Settings** → **Sound**.
+2. Under **Output**, select your **Multi-Output Device**.
+3. Now, all system audio will be played **through both your speakers and BlackHole**.
+
+---
+
+### 5️⃣ Use BlackHole as an Input in AskGPT
+1. Open **AskGPT** and ensure it is set to listen to **BlackHole**.
+2. Now, the system audio will be transcribed while still being audible through your speakers.
+
+💪 **You’re all set!** Now, AskGPT will capture system audio while you can still hear it! 🎧🔥
+
+---
+
+### 🛠️ Troubleshooting
+- If you **don’t hear sound**, check that **Built-in Output** is enabled in your **Multi-Output Device**.
+- If **AskGPT doesn’t capture audio**, ensure **BlackHole is selected as the input device** in your app.
+- Run `devs.py` again if **BlackHole's index changes** after reconnecting devices.
+- Restart your Mac if changes don’t apply immediately.
+
+
+
 ## 🛠 Installation & Setup  
 
 ### **1️⃣ Install Dependencies**  
@@ -66,7 +151,7 @@ python app.py
 Then open:  
 
 ```
-http://127.0.0.1:5000
+http://127.0.0.1:8080
 ```
 
 ---
@@ -96,4 +181,4 @@ Feel free to submit a **pull request** or open an **issue** on GitHub!
 ---
 
 ## 📜 License  
-MIT License – Free for personal and commercial use.  
+CC0 1.0 Universal – Free for personal and commercial use.  
